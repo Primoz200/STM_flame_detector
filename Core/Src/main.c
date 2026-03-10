@@ -17,6 +17,7 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include "demo.h"
 #include "main.h"
 #include <math.h>
 
@@ -60,6 +61,7 @@ static void MX_ADC1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+/*__attribute__((section(".dma_buffer"), aligned(32)))
 volatile uint16_t adc_buffer[3];		//0-srednji, 1-desni, 2-levi
 uint32_t baselines[3] = {0};
 float angle = 0.0f;
@@ -69,37 +71,11 @@ float angles[3] = {
 		25.0f * M_PI / 180.0f,
 		-25.0f * M_PI / 180.0f
 };
-
+*/
 float rad2deg(float rad){
 	return rad * 180.0f / M_PI;
 }
 
-float get_angle_rad(int32_t* vs){
-	float x = 0.0f;
-	float y = 0.0f;
-
-	float s[3];
-    for(int i = 0; i < 3; i++)
-    {
-        s[i] = (float)vs[i];
-    }
-
-
-	float sum = s[0]+s[1]+s[2];
-	if(sum < 1.0f) return 0.0f;
-
-	for(int i=0; i<3; i++){
-		if(s[i] != 0){
-			s[i] /= sum;
-		}
-		x += s[i] * cosf(angles[i]);
-		y += s[i] * sinf(angles[i]);
-	}
-
-	float direction_rad = atan2f(y,x);
-
-	return direction_rad;
-}
 /* USER CODE END 0 */
 
 /**
@@ -113,10 +89,12 @@ int main(void)
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
+	MPU_Config();
 
-  MPU_Config();
 
   /* MCU Configuration--------------------------------------------------------*/
+  SCB_EnableICache();
+  SCB_EnableDCache();
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -136,40 +114,48 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_ADC1_Init();
-  /* USER CODE BEGIN 2 */
 
-	 HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 3);
+  /* USER CODE BEGIN 2 */
+  BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE);
+  UTIL_LCD_SetFuncDriver(&LCD_Driver);
+  UTIL_LCD_Clear(UTIL_LCD_COLOR_WHITE);
+  //HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 3);
 
   /* USER CODE END 2 */
-	uint32_t start = HAL_GetTick();
-	uint32_t samples = 0;
-	int32_t values[3] = {0};
-	while(HAL_GetTick()-start < 2000){
-		for(int i = 0; i < 3; i++){
-			baselines[i] += adc_buffer[i];
-		}
-		HAL_Delay(1); 	//prepreci integer overflow, ne rabimo toliko vzorcev
-		samples++;
-	}
+  UTIL_LCD_SetFont(&Font24);
+  UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_BLACK);
+  UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_WHITE);
+  UTIL_LCD_DisplayStringAt(0, 100, (uint8_t *)"Hello!", CENTER_MODE);
 
-	for(int i = 0; i < 3; i++){
-		baselines[i] /= samples;
-	}
+  uint32_t start = HAL_GetTick();
+  uint32_t samples = 0;
+ /* while(HAL_GetTick()-start < 2000){
+	  for(int i = 0; i < 3; i++){
+		  baselines[i] += adc_buffer[i];
+	  }
+	  HAL_Delay(1); 	//prepreci integer overflow, ne rabimo toliko vzorcev
+	  samples++;
+  }
 
+  for(int i = 0; i < 3; i++){
+	  baselines[i] /= samples;
+  }
+*/
 
 	 /* Infinite loop */
+  int racunaj[3];
    while (1)
   {
 	   /* USER CODE BEGIN WHILE */
-	   for(int i = 0; i < 3; i++){
-		   int32_t diff = (int32_t)baselines[i] - (int32_t)adc_buffer[i];
+	   /*for(int i = 0; i < 3; i++){
+		   int diff = (int)baselines[i] - (int)adc_buffer[i];
 
 		   if(diff > 0){
-			   values[i] = diff;
+			   racunaj[i] = diff;
 		   }else {
-			   values[i] = 0;
+			   racunaj[i] = 0;
 		   }
-	   }
+	   }*/
 	   /* USER CODE END WHILE */
   }
    /* USER CODE BEGIN 3 */
@@ -362,29 +348,42 @@ static void MX_GPIO_Init(void)
 
 void MPU_Config(void)
 {
-  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+    MPU_Region_InitTypeDef MPU_InitStruct = {0};
 
-  /* Disables the MPU */
-  HAL_MPU_Disable();
+    /* Disables the MPU */
+    HAL_MPU_Disable();
 
-  /** Initializes and configures the Region and the memory to be protected
-  */
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.BaseAddress = 0x0;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-  MPU_InitStruct.SubRegionDisable = 0x87;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+    /* spremenjeno -> naredi da je .dma_buffer (RAM_D2) non cachable (ni potrebno delati SCB_InvalidateDCache_by_Addr)*/
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+    MPU_InitStruct.BaseAddress = 0x30000000;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_512KB;
+    MPU_InitStruct.SubRegionDisable =
+        0b11100000; // 512kB regija ima 8 sub-regij po 64kB, 288=4.5*64 ~ 5, disablamo regije 5, 6 in 7
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
-  /* Enables the MPU */
-  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+    /* config SDRAM kot not cacheable (za LCD framebuffer)*/
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+    MPU_InitStruct.BaseAddress = 0xD0000000; // SDRAM base address
+    MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
+    MPU_InitStruct.SubRegionDisable = 0x0;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
+    /* Enables the MPU */
+    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
 
 /**

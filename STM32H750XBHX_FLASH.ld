@@ -155,6 +155,13 @@ SECTIONS
     __bss_end__ = _ebss;
   } >RAM_D1
 
+  .dma_buffer (NOLOAD) :
+  { 
+    . = ALIGN(32);
+    *(.dma_buffer)
+    . = ALIGN(32);
+  } >RAM_D2
+
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack :
   {

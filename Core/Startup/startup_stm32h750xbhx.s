@@ -58,10 +58,11 @@ defined in linker script */
   .weak  Reset_Handler
   .type  Reset_Handler, %function
 Reset_Handler:
-  ldr sp, =_estack      /* set stack pointer */
+  ldr   sp, =_estack      /* set stack pointer */
 
-/* Call the ExitRun0Mode function to configure the power supply */
+/* Call ExitRun0Mode to exit Run* mode before SystemInit */
   bl  ExitRun0Mode
+
 /* Call the clock system initialization function.*/
   bl  SystemInit
 

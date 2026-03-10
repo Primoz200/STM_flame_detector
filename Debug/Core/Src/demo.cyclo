@@ -1,0 +1,4 @@
+../Core/Src/demo.c:16:6:simple_demo	5
+../Core/Src/demo.c:59:6:Touchscreen_demo	17
+../Core/Src/demo.c:171:6:Touchscreen_DrawBackground_Circles	11
+../Core/Src/demo.c:289:9:TouchScreen_GetTouchPosition	16
