@@ -20,6 +20,7 @@
 #include "demo.h"
 #include "main.h"
 #include <math.h>
+#include "stm32h750b_discovery_sdram.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -61,7 +62,7 @@ static void MX_ADC1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/*__attribute__((section(".dma_buffer"), aligned(32)))
+__attribute__((section(".dma_buffer"), aligned(32)))
 volatile uint16_t adc_buffer[3];		//0-srednji, 1-desni, 2-levi
 uint32_t baselines[3] = {0};
 float angle = 0.0f;
@@ -71,13 +72,33 @@ float angles[3] = {
 		25.0f * M_PI / 180.0f,
 		-25.0f * M_PI / 180.0f
 };
-*/
+
 float rad2deg(float rad){
 	return rad * 180.0f / M_PI;
 }
 
 /* USER CODE END 0 */
+/* Override weak BSP function - recalculated for HSI 64MHz source instead of HSE 25MHz */
+/* PLL3 input = HSI(64MHz) / 10 = 6.4 MHz (within 4-8 MHz range)                      */
+/* PLL3 VCO   = 6.4 * 60 = 384 MHz (within 192-960 MHz wide VCO)                       */
+/* LTDC clock = 384 / 40 = 9.6 MHz (same pixel clock as demo)                           */
+HAL_StatusTypeDef MX_LTDC_ClockConfig(LTDC_HandleTypeDef *hltdc)
+{
+  UNUSED(hltdc);
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
+  PeriphClkInitStruct.PLL3.PLL3M      = 10;
+  PeriphClkInitStruct.PLL3.PLL3N      = 60;
+  PeriphClkInitStruct.PLL3.PLL3P      = 2;
+  PeriphClkInitStruct.PLL3.PLL3Q      = 2;
+  PeriphClkInitStruct.PLL3.PLL3R      = 40;
+  PeriphClkInitStruct.PLL3.PLL3RGE    = RCC_PLL3VCIRANGE_2;   /* 4–8 MHz input */
+  PeriphClkInitStruct.PLL3.PLL3VCOSEL = RCC_PLL3VCOWIDE;      /* 192–960 MHz VCO */
+  PeriphClkInitStruct.PLL3.PLL3FRACN  = 0;
+
+  return HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
+}
 /**
   * @brief  The application entry point.
   * @retval int
@@ -86,6 +107,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -93,6 +115,7 @@ int main(void)
 
 
   /* MCU Configuration--------------------------------------------------------*/
+
   SCB_EnableICache();
   SCB_EnableDCache();
 
@@ -100,7 +123,6 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -116,10 +138,16 @@ int main(void)
   MX_ADC1_Init();
 
   /* USER CODE BEGIN 2 */
-  BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE);
+  if(BSP_SDRAM_Init(0) != BSP_ERROR_NONE){
+	  Error_Handler();
+  }
+
+  if(BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE) != BSP_ERROR_NONE){
+	  Error_Handler();
+  }
+
   UTIL_LCD_SetFuncDriver(&LCD_Driver);
   UTIL_LCD_Clear(UTIL_LCD_COLOR_WHITE);
-  //HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 3);
 
   /* USER CODE END 2 */
   UTIL_LCD_SetFont(&Font24);
@@ -127,6 +155,8 @@ int main(void)
   UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_WHITE);
   UTIL_LCD_DisplayStringAt(0, 100, (uint8_t *)"Hello!", CENTER_MODE);
 
+
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 3);
   uint32_t start = HAL_GetTick();
   uint32_t samples = 0;
  /* while(HAL_GetTick()-start < 2000){

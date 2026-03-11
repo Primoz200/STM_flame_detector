@@ -69,7 +69,7 @@ int32_t MT48LC4M32B2_Init(SDRAM_HandleTypeDef *Ctx, MT48LC4M32B2_Context_t *pReg
   {
     /* Step 2: Insert 100 us minimum delay */ 
     /* Inserted delay is equal to 1 ms due to systick time base unit (ms) */
-    (void)MT48LC4M32B2_Delay(1);
+    (void)MT48LC4M32B2_Delay(3);
     
     /* Step 3: Configure a PALL (precharge all) command */ 
     if(MT48LC4M32B2_Precharge(Ctx, pRegMode->TargetBank) == MT48LC4M32B2_OK)

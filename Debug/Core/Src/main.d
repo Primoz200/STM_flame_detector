@@ -48,7 +48,9 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/demo.h \
  ../Core/Inc/../Components/ft5336/ft5336.h \
  ../Core/Inc/../Components/ft5336/ft5336_reg.h ../Core/Inc/ft5336_conf.h \
  ../Core/Inc/stm32_lcd.h ../Core/Inc/../../Fonts/fonts.h \
- ../Core/Inc/main.h
+ ../Core/Inc/main.h ../Core/Inc/stm32h750b_discovery_sdram.h \
+ ../Core/Inc/../Components/mt48lc4m32b2/mt48lc4m32b2.h \
+ ../Core/Inc/mt48lc4m32b2_conf.h
 ../Core/Inc/demo.h:
 ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h:
 ../Core/Inc/stm32h7xx_hal_conf.h:
@@ -102,3 +104,6 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/demo.h \
 ../Core/Inc/stm32_lcd.h:
 ../Core/Inc/../../Fonts/fonts.h:
 ../Core/Inc/main.h:
+../Core/Inc/stm32h750b_discovery_sdram.h:
+../Core/Inc/../Components/mt48lc4m32b2/mt48lc4m32b2.h:
+../Core/Inc/mt48lc4m32b2_conf.h:
