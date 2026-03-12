@@ -4,7 +4,7 @@
 #include "stm32h750b_discovery_lcd.h"
 #include "stm32_lcd.h"
 
-void drawArrow(float angle);
+void drawArrow(float angle, Point* tocke);
 
 
 #endif

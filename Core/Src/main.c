@@ -69,6 +69,7 @@ uint32_t baselines[3] = {0};
 uint32_t racunaj[3] = {0};
 volatile float angle_debug;
 volatile uint32_t jakost;
+Point tocke[7];
 
 float angles[3] = {
 	-25.0f * M_PI / 180.0f,
@@ -177,11 +178,6 @@ int main(void)
   UTIL_LCD_Clear(UTIL_LCD_COLOR_WHITE);
 
   /* USER CODE END 2 */
- /* UTIL_LCD_SetFont(&Font24);
-  UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_BLACK);
-  UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_WHITE);
-  UTIL_LCD_DisplayStringAt(0, 100, (uint8_t *)"Hello!", CENTER_MODE);
-  */
 
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 3);
   uint32_t start = HAL_GetTick();
@@ -198,28 +194,39 @@ int main(void)
 	  baselines[i] /= samples;
   }
 
-  Point tocke[7];
+  int first = 1;
 	 /* Infinite loop */
-   while (1)
+
+  float angle = 0.0f;
+  float prev_angle = -999.0f;
+  uint32_t prev_jakost_state = 0; // 0 = circle, 1 = arrow
+  while (1)
   {
-	   /* USER CODE BEGIN WHILE */
-	   float angle = 0.0f;
-	   /* USER CODE BEGIN WHILE */
-	   for(int i = 0; i < 3; i++){
-		   int diff = (int)baselines[i] - (int)adc_buffer[i];
-		   racunaj[i] = diff < 0 ? 0 : diff;
-	   }
+      for(int i = 0; i < 3; i++){
+          int diff = (int)baselines[i] - (int)adc_buffer[i];
+          racunaj[i] = diff < 0 ? 0 : diff;
+      }
 
-	   angle = calculateAngle();
-		//UTIL_LCD_FillPolygon(tocke, 4, UTIL_LCD_COLOR_WHITE);
+      angle = calculateAngle();
 
-	   if(jakost > 10000){
-		   drawArrow(angle);
-	   }else{
-		   UTIL_LCD_FillCircle(240, 136, 15, UTIL_LCD_COLOR_GREEN);
-	   }
+      uint32_t showing_arrow = jakost > 10000;
 
-	   /* USER CODE END WHILE */
+      // Only redraw if something meaningfully changed
+      if(showing_arrow && (prev_jakost_state == 0 || fabsf(angle - prev_angle) > 1.0f)){
+          //if(first != 1) UTIL_LCD_FillPolygon(tocke, 5, UTIL_LCD_COLOR_WHITE);
+          if(first != 1) UTIL_LCD_DrawLine(tocke[0].X, tocke[0].Y, tocke[1].X , tocke[1].Y, UTIL_LCD_COLOR_WHITE);
+          first = 0;
+          drawArrow(angle, tocke);
+          prev_angle = angle;
+          prev_jakost_state = 1;
+      } else if(!showing_arrow && prev_jakost_state == 1){
+          // Only redraw circle when switching away from arrow
+          if(first != 1) UTIL_LCD_FillPolygon(tocke, 5, UTIL_LCD_COLOR_WHITE);
+          first = 0;
+          UTIL_LCD_FillCircle(100, 100, 15, UTIL_LCD_COLOR_GREEN);
+          prev_angle = -999.0f;
+          prev_jakost_state = 0;
+      }
   }
    /* USER CODE BEGIN 3 */
   /* USER CODE END 3 */
