@@ -21,6 +21,7 @@
 #include "main.h"
 #include <math.h>
 #include "stm32h750b_discovery_sdram.h"
+#include "display.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -63,15 +64,41 @@ static void MX_ADC1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 __attribute__((section(".dma_buffer"), aligned(32)))
-volatile uint16_t adc_buffer[3];		//0-srednji, 1-desni, 2-levi
+volatile uint16_t adc_buffer[3];
 uint32_t baselines[3] = {0};
-float angle = 0.0f;
+uint32_t racunaj[3] = {0};
+volatile float angle_debug;
+volatile uint32_t jakost;
 
 float angles[3] = {
-		0.0f,
-		25.0f * M_PI / 180.0f,
-		-25.0f * M_PI / 180.0f
+	-25.0f * M_PI / 180.0f,
+	0.0f,
+	25.0f * M_PI / 180.0f
 };
+float angles_deg[3] = {-25, 0, 25};
+
+float calculateAngle(){
+	uint32_t sum = 0;
+	//float normalized[3];
+	float angle = 0.0f;
+
+	/*for(int i = 0; i < 3; i++){
+		sum+=racunaj[i];
+		normalized[i] = racunaj[i];
+	}
+	for(int i = 0; i < 3; i++){
+		normalized[i] /= sum;
+	}*/
+
+	for(int i = 0; i < 3;  i++){
+		sum += racunaj[i];
+		angle += racunaj[i] * angles_deg[i];
+	}
+	jakost = sum;
+	if(sum == 0) return 0;
+	return angle / sum;
+}
+
 
 float rad2deg(float rad){
 	return rad * 180.0f / M_PI;
@@ -150,16 +177,16 @@ int main(void)
   UTIL_LCD_Clear(UTIL_LCD_COLOR_WHITE);
 
   /* USER CODE END 2 */
-  UTIL_LCD_SetFont(&Font24);
+ /* UTIL_LCD_SetFont(&Font24);
   UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_BLACK);
   UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_WHITE);
   UTIL_LCD_DisplayStringAt(0, 100, (uint8_t *)"Hello!", CENTER_MODE);
-
+  */
 
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 3);
   uint32_t start = HAL_GetTick();
   uint32_t samples = 0;
- /* while(HAL_GetTick()-start < 2000){
+  while(HAL_GetTick()-start < 2000){
 	  for(int i = 0; i < 3; i++){
 		  baselines[i] += adc_buffer[i];
 	  }
@@ -170,22 +197,28 @@ int main(void)
   for(int i = 0; i < 3; i++){
 	  baselines[i] /= samples;
   }
-*/
 
+  Point tocke[7];
 	 /* Infinite loop */
-  int racunaj[3];
    while (1)
   {
 	   /* USER CODE BEGIN WHILE */
-	   /*for(int i = 0; i < 3; i++){
+	   float angle = 0.0f;
+	   /* USER CODE BEGIN WHILE */
+	   for(int i = 0; i < 3; i++){
 		   int diff = (int)baselines[i] - (int)adc_buffer[i];
+		   racunaj[i] = diff < 0 ? 0 : diff;
+	   }
 
-		   if(diff > 0){
-			   racunaj[i] = diff;
-		   }else {
-			   racunaj[i] = 0;
-		   }
-	   }*/
+	   angle = calculateAngle();
+		//UTIL_LCD_FillPolygon(tocke, 4, UTIL_LCD_COLOR_WHITE);
+
+	   if(jakost > 10000){
+		   drawArrow(angle);
+	   }else{
+		   UTIL_LCD_FillCircle(240, 136, 15, UTIL_LCD_COLOR_GREEN);
+	   }
+
 	   /* USER CODE END WHILE */
   }
    /* USER CODE BEGIN 3 */
