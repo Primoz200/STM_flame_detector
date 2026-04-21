@@ -67,9 +67,8 @@ __attribute__((section(".dma_buffer"), aligned(32)))
 volatile uint16_t adc_buffer[3];
 uint32_t baselines[3] = {0};
 uint32_t racunaj[3] = {0};
-volatile float angle_debug;
 volatile uint32_t jakost;
-Point tocke[7];
+Point tocke[2];
 
 float angles[3] = {
 	-25.0f * M_PI / 180.0f,
@@ -82,14 +81,6 @@ float calculateAngle(){
 	uint32_t sum = 0;
 	//float normalized[3];
 	float angle = 0.0f;
-
-	/*for(int i = 0; i < 3; i++){
-		sum+=racunaj[i];
-		normalized[i] = racunaj[i];
-	}
-	for(int i = 0; i < 3; i++){
-		normalized[i] /= sum;
-	}*/
 
 	for(int i = 0; i < 3;  i++){
 		sum += racunaj[i];
@@ -107,9 +98,6 @@ float rad2deg(float rad){
 
 /* USER CODE END 0 */
 /* Override weak BSP function - recalculated for HSI 64MHz source instead of HSE 25MHz */
-/* PLL3 input = HSI(64MHz) / 10 = 6.4 MHz (within 4-8 MHz range)                      */
-/* PLL3 VCO   = 6.4 * 60 = 384 MHz (within 192-960 MHz wide VCO)                       */
-/* LTDC clock = 384 / 40 = 9.6 MHz (same pixel clock as demo)                           */
 HAL_StatusTypeDef MX_LTDC_ClockConfig(LTDC_HandleTypeDef *hltdc)
 {
   UNUSED(hltdc);
@@ -194,12 +182,10 @@ int main(void)
 	  baselines[i] /= samples;
   }
 
-  int first = 1;
-	 /* Infinite loop */
-
   float angle = 0.0f;
-  float prev_angle = -999.0f;
-  uint32_t prev_jakost_state = 0; // 0 = circle, 1 = arrow
+  int last = 0;
+  /* Infinite loop */
+  UTIL_LCD_FillCircle(240, 20, 5, UTIL_LCD_COLOR_BLACK);
   while (1)
   {
       for(int i = 0; i < 3; i++){
@@ -207,25 +193,19 @@ int main(void)
           racunaj[i] = diff < 0 ? 0 : diff;
       }
 
-      angle = calculateAngle();
+      angle = calculateAngle();	//izracuna tudi jakost
 
-      uint32_t showing_arrow = jakost > 10000;
-
-      // Only redraw if something meaningfully changed
-      if(showing_arrow && (prev_jakost_state == 0 || fabsf(angle - prev_angle) > 1.0f)){
-          //if(first != 1) UTIL_LCD_FillPolygon(tocke, 5, UTIL_LCD_COLOR_WHITE);
-          if(first != 1) UTIL_LCD_DrawLine(tocke[0].X, tocke[0].Y, tocke[1].X , tocke[1].Y, UTIL_LCD_COLOR_WHITE);
-          first = 0;
+      if(jakost > 10000){
+          UTIL_LCD_DrawLine(tocke[0].X, tocke[0].Y, tocke[1].X , tocke[1].Y, UTIL_LCD_COLOR_WHITE);
           drawArrow(angle, tocke);
-          prev_angle = angle;
-          prev_jakost_state = 1;
-      } else if(!showing_arrow && prev_jakost_state == 1){
-          // Only redraw circle when switching away from arrow
-          if(first != 1) UTIL_LCD_FillPolygon(tocke, 5, UTIL_LCD_COLOR_WHITE);
-          first = 0;
-          UTIL_LCD_FillCircle(100, 100, 15, UTIL_LCD_COLOR_GREEN);
-          prev_angle = -999.0f;
-          prev_jakost_state = 0;
+
+          if (last == 0){
+        	  UTIL_LCD_FillCircle(50, 50, 20, UTIL_LCD_COLOR_WHITE);
+        	  last = 1;
+          }
+      } else {
+    	  UTIL_LCD_FillCircle(50, 50, 20, UTIL_LCD_COLOR_RED);
+    	  last = 0;
       }
   }
    /* USER CODE BEGIN 3 */
@@ -423,13 +403,12 @@ void MPU_Config(void)
     /* Disables the MPU */
     HAL_MPU_Disable();
 
-    /* spremenjeno -> naredi da je .dma_buffer (RAM_D2) non cachable (ni potrebno delati SCB_InvalidateDCache_by_Addr)*/
+    /* spremenjeno -> naredi da je .dma_buffer (RAM_D2) non cachable*/
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
     MPU_InitStruct.Number = MPU_REGION_NUMBER0;
     MPU_InitStruct.BaseAddress = 0x30000000;
     MPU_InitStruct.Size = MPU_REGION_SIZE_512KB;
-    MPU_InitStruct.SubRegionDisable =
-        0b11100000; // 512kB regija ima 8 sub-regij po 64kB, 288=4.5*64 ~ 5, disablamo regije 5, 6 in 7
+    MPU_InitStruct.SubRegionDisable = x0b11100000; // 512kB regija ima 8 sub-regij po 64kB, 288=4.5*64 ~ 5, disablamo regije 5, 6 in 7
     MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
     MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
     MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
